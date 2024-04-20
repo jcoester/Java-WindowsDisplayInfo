@@ -2,7 +2,7 @@
 Standalone Java class to retrieve Windows resolution(s), aspect ratios and scale factor
 
 ## Setup 
-- Add class to src: [**WindowsDisplayInfo.java**](/src/WindowsDisplay.java)
+- Add class to src: [**WindowsDisplayInfo.java**](/src/WindowsDisplayInfo.java)
 - Add library: ****net.java.dev.jna.platform:Release**** *(through Maven or similar)*
 
 
