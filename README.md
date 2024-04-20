@@ -25,6 +25,15 @@ Standalone Java class to retrieve Windows resolution(s), aspect ratios and scale
     All (Ascending) : [800 x 600 (4:3), ..., 3840 x 2160 (16:9)]
     All (Descending): [3840 x 2160 (16:9), ..., 800 x 600 (4:3)]
 
+### Example: 2560 x 1440 and 150% scaling 
+    Scale (double)  : 1.5
+    Scale ( int% )  : 150
+    Native          : 2560 x 1440 (16:9)
+    Adjusted        : 1920 x 1080 (16:9)
+    Maximum         : 3840 x 2160 (16:9)
+    All (Ascending) : [800 x 600 (4:3), ..., 3840 x 2160 (16:9)]
+    All (Descending): [3840 x 2160 (16:9), ..., 800 x 600 (4:3)]
+
 ### Example: 3840 x 2160 and 200% scaling 
     Scale (double)  : 2.0
     Scale ( int% )  : 200
@@ -33,4 +42,3 @@ Standalone Java class to retrieve Windows resolution(s), aspect ratios and scale
     Maximum         : 3840 x 2160 (16:9)
     All (Ascending) : [800 x 600 (4:3), ..., 3840 x 2160 (16:9)]
     All (Descending): [3840 x 2160 (16:9), ..., 800 x 600 (4:3)]
-
