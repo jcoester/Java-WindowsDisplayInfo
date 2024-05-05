@@ -23,9 +23,14 @@ import java.util.concurrent.TimeUnit;
  * <p>Partial support for <code>Java 11+</code>: Value from application startup</p>
  *
  * @author     <a href="https://github.com/jcoester/Java-WindowsDisplayInfo/">jcoester</a>
- * @version    1.1 (2024 Apr. 20)
+ * @version    1.2 (2024 May. 05)
  */
 public class WindowsDisplayInfo {
+
+    private static final int HORZ_RES = 8;
+    private static final int VERT_RES = 10;
+    private static final int DESKTOP_VERT_RES = 117;
+    private static final int DESKTOP_HORZ_RES = 118;
 
     public static void main(String[] args) {
         // For demonstration: Check Windows Display every 5 seconds
@@ -40,125 +45,141 @@ public class WindowsDisplayInfo {
         System.out.println("Native          : " + retrieveNativeResolution()); // Native
         System.out.println("Adjusted        : " + retrieveAdjustedResolution()); // Native, adjusted by scale factor
         System.out.println("Maximum         : " + retrieveMaximumResolution()); // Maximum
-        System.out.println("All (Ascending) : " + retrieveAllScreenResolutions(true)); // List of all, sorted smallest to largest
-        System.out.println("All (Descending): " + retrieveAllScreenResolutions(false)); // List of all, sorted largest to smallest
+        System.out.println("All (Ascending) : " + retrieveAllResolutions(true)); // List of all, sorted smallest to largest
+        System.out.println("All (Descending): " + retrieveAllResolutions(false)); // List of all, sorted largest to smallest
         System.out.println(); // Empty line for easier readability during demonstration
     }
 
     public static double retrieveScaleFactor() {
+        WinDef.HDC hdc = null;
 
-        /* Retrieve AWT scale
-         * (Detects the initial Windows Display Scale during application startup) */
-        double awtScale = Toolkit.getDefaultToolkit().getScreenResolution() / 96.0f;
+        try {
+            // Using AWT, retrieve the initial scaleFactor from application startup
+            double awtScale = Toolkit.getDefaultToolkit().getScreenResolution() / 96.0f;
 
-        // Retrieve HDC (Handle to Device Context (DC))
-        WinDef.HDC hdc = GDI32.INSTANCE.CreateCompatibleDC(null);
-        if (hdc == null)
-            return 0;
+            // Retrieve HDC (Handle to Device Context (DC))
+            hdc = GDI32.INSTANCE.CreateCompatibleDC(null);
+            if (hdc == null)
+                return 0;
 
-        /* Retrieve HDC Display info
-         * (Detects changes to the Windows Display Scale during the application runtime) */
-        double a = GDI32.INSTANCE.GetDeviceCaps(hdc, 10); // 10=VERTRES
-        double b = GDI32.INSTANCE.GetDeviceCaps(hdc, 117); // 117=DESKTOPVERTRES
-        GDI32.INSTANCE.DeleteDC(hdc);
-        if (a == 0 || b == 0)
-            return 0;
+            // Using HDC, detect changes to the scaleFactor during the runtime
+            double a = GDI32.INSTANCE.GetDeviceCaps(hdc, VERT_RES);
+            double b = GDI32.INSTANCE.GetDeviceCaps(hdc, DESKTOP_VERT_RES);
+            if (a == 0 || b == 0)
+                return 0;
 
-        // Offset HDC with the initial AWT scale
-        b = b * awtScale;
+            // Offset DESKTOP_VERT_RES with the initial AWT scaleFactor
+            b = b * awtScale;
 
-        // Calculate Windows Display Scale
-        double windowsDisplayScale = a > b ? a / b : b / a;
+            // Calculate scaleFactor
+            double scaleFactor = a > b ? a / b : b / a;
 
-        // Round to two decimals and return
-        return BigDecimal.valueOf(windowsDisplayScale).setScale(2, RoundingMode.HALF_UP).doubleValue();
+            // Round to two decimals and return
+            return BigDecimal.valueOf(scaleFactor).setScale(2, RoundingMode.HALF_UP).doubleValue();
+
+        } catch (Exception e) {
+            // Handle Exception
+            e.printStackTrace();
+
+        } finally {
+            // Close HDC (Handle to Device Context (DC))
+            if (hdc != null) {
+                GDI32.INSTANCE.DeleteDC(hdc);
+            }
+        }
+
+        return 0;
     }
 
     public static int retrieveScaleFactorPercentage() {
-
-        /* Retrieve AWT scale
-         * (Detects the initial Windows Display Scale during application startup) */
-        double awtScale = Toolkit.getDefaultToolkit().getScreenResolution() / 96.0f;
-
-        // Retrieve HDC (Handle to Device Context (DC))
-        WinDef.HDC hdc = GDI32.INSTANCE.CreateCompatibleDC(null);
-        if (hdc == null)
-            return 0;
-
-        /* Retrieve HDC Display info
-         * (Detects changes to the Windows Display Scale during the application runtime) */
-        double a = GDI32.INSTANCE.GetDeviceCaps(hdc, 10); // 10=VERTRES
-        double b = GDI32.INSTANCE.GetDeviceCaps(hdc, 117); // 117=DESKTOPVERTRES
-        GDI32.INSTANCE.DeleteDC(hdc);
-        if (a == 0 || b == 0)
-            return 0;
-
-        // Offset HDC with the initial AWT scale
-        b = b * awtScale;
-
-        // Calculate Windows Display Scale
-        double windowsDisplayScale = a > b ? a / b : b / a;
-
-        // Round to two decimals and return
-        double scaleDecimal = BigDecimal.valueOf(windowsDisplayScale).setScale(2, RoundingMode.HALF_UP).doubleValue();
-        return (int) (scaleDecimal * 100);
+        return (int) (retrieveScaleFactor() * 100);
     }
 
     public static Resolution retrieveNativeResolution() {
-        // Retrieve HDC (Handle to Device Context (DC))
-        WinDef.HDC hdc = GDI32.INSTANCE.CreateCompatibleDC(null);
-        if (hdc == null)
-            return null;
+        WinDef.HDC hdc = null;
 
-        /* Retrieve HDC Display info
-         * (Detects changes to the Windows Display Scale during the application runtime) */
-        double a = GDI32.INSTANCE.GetDeviceCaps(hdc, 118); // 118=DESKTOPHORZRES
-        double b = GDI32.INSTANCE.GetDeviceCaps(hdc, 117); // 117=DESKTOPVERTRES
+        try {
+            // Retrieve HDC (Handle to Device Context (DC))
+            hdc = GDI32.INSTANCE.CreateCompatibleDC(null);
+            if (hdc == null)
+                return null;
 
-        GDI32.INSTANCE.DeleteDC(hdc);
-        if (a == 0 || b == 0)
-            return null;
+            // Using HDC, detect changes to the scaleFactor during the runtime
+            double a = GDI32.INSTANCE.GetDeviceCaps(hdc, DESKTOP_HORZ_RES);
+            double b = GDI32.INSTANCE.GetDeviceCaps(hdc, DESKTOP_VERT_RES);
+            if (a == 0 || b == 0)
+                return null;
 
-        return new Resolution((int) a, (int) b, determineAspectRatio((int) a, (int) b));
+            // Return Native Resolution
+            return new Resolution((int) a, (int) b, determineAspectRatio((int) a, (int) b));
+
+        } catch (Exception e) {
+            // Handle Exception
+            e.printStackTrace();
+
+        } finally {
+            // Close HDC (Handle to Device Context (DC))
+            if (hdc != null) {
+                GDI32.INSTANCE.DeleteDC(hdc);
+            }
+        }
+
+        return null;
     }
 
     public static Resolution retrieveEffectiveResolution() {
+        WinDef.HDC hdc = null;
 
-        /* Retrieve AWT scale
-         * (Detects the Windows Display Scale once during application startup) */
-        double awtScale = Toolkit.getDefaultToolkit().getScreenResolution() / 96.0f;
+        try {
+            // Using AWT, retrieve the initial scaleFactor from application startup
+            double awtScale = Toolkit.getDefaultToolkit().getScreenResolution() / 96.0f;
 
-        // Retrieve HDC (Handle to Device Context (DC))
-        WinDef.HDC hdc = GDI32.INSTANCE.CreateCompatibleDC(null);
-        if (hdc == null)
-            return null;
+            // Retrieve HDC (Handle to Device Context (DC))
+            hdc = GDI32.INSTANCE.CreateCompatibleDC(null);
+            if (hdc == null)
+                return null;
 
-        /* Retrieve HDC Display info
-         * (Detects changes to the Windows Display Scale during the application runtime) */
-        double a = GDI32.INSTANCE.GetDeviceCaps(hdc, 8); // 8=HORZRES
-        double b = GDI32.INSTANCE.GetDeviceCaps(hdc, 10); // 10=VERTRES
+            // Using HDC, detect changes to the scaleFactor during the runtime
+            double a = GDI32.INSTANCE.GetDeviceCaps(hdc, HORZ_RES);
+            double b = GDI32.INSTANCE.GetDeviceCaps(hdc, VERT_RES);
+            if (a == 0 || b == 0)
+                return null;
 
-        GDI32.INSTANCE.DeleteDC(hdc);
-        if (a == 0 || b == 0)
-            return null;
+            // Offset HORZ_RES and VERT_RES with the initial AWT scaleFactor
+            a = a / awtScale;
+            b = b / awtScale;
 
-        // Offset HDC with the initial AWT scale
-        a = a / awtScale;
-        b = b / awtScale;
+            // Return Resolution
+            return new Resolution((int) a, (int) b, determineAspectRatio((int) a, (int) b));
 
-        return new Resolution((int) a, (int) b, determineAspectRatio((int) a, (int) b));
+        } catch (Exception e) {
+            // Handle Exception
+            e.printStackTrace();
+
+        } finally {
+            // Close HDC (Handle to Device Context (DC))
+            if (hdc != null) {
+                GDI32.INSTANCE.DeleteDC(hdc);
+            }
+        }
+
+        return null;
     }
 
     public static Resolution retrieveAdjustedResolution() {
         Resolution effective = retrieveEffectiveResolution();
-        List<Resolution> allResolutions = retrieveAllScreenResolutions(true);
+        List<Resolution> allResolutions = retrieveAllResolutions(true);
 
-        if (allResolutions.contains(effective)) // If effective is valid, return
+        // If Effective is valid
+        if (allResolutions.contains(effective))
             return effective;
 
-        for (Resolution res : allResolutions) { // If effective is not valid, look for closest larger match
-            if (effective != null && res.getAspectRatio().equals(effective.getAspectRatio())) // Must be same aspect ratio
-                if (res.getWidth() >= effective.getWidth()) // First matching item
+        // If Effective is not valid, look for closest larger resolution
+        for (Resolution res : allResolutions) {
+            // Same aspect ratio
+            if (effective != null && res.getAspectRatio().equals(effective.getAspectRatio()))
+                // First larger resolution
+                if (res.getWidth() >= effective.getWidth())
                     return res;
         }
 
@@ -166,16 +187,18 @@ public class WindowsDisplayInfo {
     }
 
     public static Resolution retrieveMaximumResolution() {
-        List<Resolution> resolutions = retrieveAllScreenResolutions(false);
+        List<Resolution> resolutions = retrieveAllResolutions(false);
         return resolutions.isEmpty() ? null : resolutions.get(0);
     }
 
-    public static List<Resolution> retrieveAllScreenResolutions(boolean ascending) {
-        Set<Resolution> resolutionSet = new HashSet<>(); // set for unique resolutions
+    public static List<Resolution> retrieveAllResolutions(boolean ascending) {
+        Resolution minimum = new Resolution(800, 600, "4:3"); // Minimum resolution available in Windows 11
+
+        Set<Resolution> resolutionSet = new HashSet<>(); // Set for unique resolutions
         GraphicsDevice dev = GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()[0]; // [0] main display
 
         for (DisplayMode m : dev.getDisplayModes())
-            if (m.getWidth() >= 800 && m.getHeight() >= 600) // Minimum resolution available in Windows 11
+            if (m.getWidth() >= minimum.getWidth() && m.getHeight() >= minimum.getHeight())
                 resolutionSet.add(new Resolution(m.getWidth(), m.getHeight(), determineAspectRatio(m.getWidth(), m.getHeight())));
 
         List<Resolution> sortResolutions = new ArrayList<>(resolutionSet);
